@@ -13,6 +13,11 @@ const clearHistoryBtn = document.getElementById('clearHistoryBtn');
 
 let mediaRecorder = null;
 let chunks = [];
+let currentReplyCantonese = '';
+let currentReplyYale = '';
+let currentEnglish = '';
+let currentAlignmentPairs = [];
+let activeEnglishKey = null;
 
 function setStatus(msg, level = 'secondary') {
   statusBox.className = `alert alert-${level} py-2 mb-3`;
@@ -27,6 +32,109 @@ function blobToDataURI(blob) {
     reader.readAsDataURL(blob);
   });
 }
+
+function escapeHtml(str) {
+  return String(str)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function normalizeEnglishWord(word) {
+  return word.toLowerCase().replace(/[^a-z0-9']/g, '');
+}
+
+function escapeRegExp(str) {
+  return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function highlightPhrase(text, phrase) {
+  if (!phrase || !text) return escapeHtml(text || '');
+  const pattern = new RegExp(escapeRegExp(phrase), 'gi');
+  return escapeHtml(text).replace(pattern, (m) => `<span class="hl-match">${m}</span>`);
+}
+
+function highlightMappedPhrase(text, mappedPhrases) {
+  if (!text) return '-';
+  if (!Array.isArray(mappedPhrases) || mappedPhrases.length === 0) return escapeHtml(text);
+
+  let html = escapeHtml(text);
+  mappedPhrases
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length)
+    .forEach((phrase) => {
+      const pattern = new RegExp(escapeRegExp(phrase), 'gi');
+      html = html.replace(pattern, (m) => `<span class="hl-match">${m}</span>`);
+    });
+  return html;
+}
+
+function buildAlignmentIndex(pairs) {
+  const index = new Map();
+  if (!Array.isArray(pairs)) return index;
+
+  pairs.forEach((pair) => {
+    if (!pair || typeof pair !== 'object') return;
+    const key = normalizeEnglishWord(pair.english || '');
+    if (!key) return;
+    if (!index.has(key)) index.set(key, []);
+    index.get(key).push({
+      cantonese: String(pair.cantonese || '').trim(),
+      yale: String(pair.yale || '').trim(),
+    });
+  });
+
+  return index;
+}
+
+function renderEnglishExplanation(text, pairs) {
+  if (!text) {
+    replyEnglishBox.textContent = '-';
+    return;
+  }
+
+  const alignmentIndex = buildAlignmentIndex(pairs);
+  const tokens = text.split(/(\b[\w']+\b)/);
+  const html = tokens.map((token) => {
+    if (!/\b[\w']+\b/.test(token)) {
+      return escapeHtml(token);
+    }
+    const key = normalizeEnglishWord(token);
+    const clickable = alignmentIndex.has(key);
+    const cls = clickable
+      ? `eng-token${activeEnglishKey === key ? ' active' : ''}`
+      : '';
+    const attr = clickable ? ` data-eng-key="${escapeHtml(key)}"` : '';
+    return `<span class="${cls}"${attr}>${escapeHtml(token)}</span>`;
+  }).join('');
+
+  replyEnglishBox.innerHTML = html;
+
+  if (!activeEnglishKey || !alignmentIndex.has(activeEnglishKey)) {
+    replyCantoneseBox.textContent = currentReplyCantonese || '-';
+    replyCantoneseYaleBox.textContent = currentReplyYale || '-';
+    return;
+  }
+
+  const entries = alignmentIndex.get(activeEnglishKey) || [];
+  const cantonesePhrases = entries.map((e) => e.cantonese).filter(Boolean);
+  const yalePhrases = entries.map((e) => e.yale).filter(Boolean);
+
+  replyCantoneseBox.innerHTML = highlightMappedPhrase(currentReplyCantonese, cantonesePhrases);
+  replyCantoneseYaleBox.innerHTML = highlightMappedPhrase(currentReplyYale, yalePhrases);
+}
+
+replyEnglishBox.addEventListener('click', (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) return;
+  const key = target.dataset.engKey;
+  if (!key) return;
+
+  activeEnglishKey = (activeEnglishKey === key) ? null : key;
+  renderEnglishExplanation(currentEnglish, currentAlignmentPairs);
+});
 
 async function loadHistory() {
   const res = await fetch('api/history.php');
@@ -51,15 +159,6 @@ async function loadHistory() {
       </div>
     `;
   }).join('');
-}
-
-function escapeHtml(str) {
-  return String(str)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
 }
 
 startBtn.addEventListener('click', async () => {
@@ -90,16 +189,23 @@ startBtn.addEventListener('click', async () => {
 
       transcriptBox.textContent = payload.transcript || '-';
       transcriptYaleBox.textContent = payload.transcript_yale || '-';
-      replyCantoneseBox.textContent = payload.reply_cantonese || '-';
-      replyCantoneseYaleBox.textContent = payload.reply_cantonese_yale || '-';
-      replyEnglishBox.textContent = payload.explanation_english || '-';
+
+      currentReplyCantonese = payload.reply_cantonese || '';
+      currentReplyYale = payload.reply_cantonese_yale || '';
+      currentEnglish = payload.explanation_english || '';
+      currentAlignmentPairs = Array.isArray(payload.alignment_pairs) ? payload.alignment_pairs : [];
+      activeEnglishKey = null;
+
+      replyCantoneseBox.textContent = currentReplyCantonese || '-';
+      replyCantoneseYaleBox.textContent = currentReplyYale || '-';
+      renderEnglishExplanation(currentEnglish, currentAlignmentPairs);
 
       if (payload.audio_url) {
         audioPlayer.src = payload.audio_url;
         audioPlayer.play().catch(() => {});
       }
 
-      setStatus('Done. Speak again anytime.', 'success');
+      setStatus('Done. Tap English words to highlight mapped Cantonese.', 'success');
       await loadHistory();
     };
 

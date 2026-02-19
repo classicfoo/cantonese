@@ -51,6 +51,78 @@ function generate_yale_romanization(
     return trim((string) ($parsed['yale'] ?? ''));
 }
 
+function generate_alignment_pairs(
+    string $replyCantonese,
+    string $replyCantoneseYale,
+    string $explanationEnglish,
+    string $baseUrl,
+    string $apiKey,
+    string $chatModel
+): array {
+    if ($replyCantonese === '' || $explanationEnglish === '') {
+        return [];
+    }
+
+    $payload = [
+        'model' => $chatModel,
+        'messages' => [
+            [
+                'role' => 'system',
+                'content' => 'Create keyword alignment between English explanation and Cantonese reply. '
+                    . 'Return STRICT JSON only with: {"pairs":[{"english":"...","cantonese":"...","yale":"..."}]}. '
+                    . 'Use single English words when possible. Keep max 12 pairs. No extra keys.',
+            ],
+            [
+                'role' => 'user',
+                'content' => "Cantonese reply:\n{$replyCantonese}\n\n"
+                    . "Cantonese Yale:\n{$replyCantoneseYale}\n\n"
+                    . "English explanation:\n{$explanationEnglish}",
+            ],
+        ],
+        'stream' => false,
+        'temperature' => 0.1,
+    ];
+
+    $resp = post_json($baseUrl . '/compatible-mode/v1/chat/completions', $payload, $apiKey);
+    if (!$resp['ok']) {
+        return [];
+    }
+
+    $message = $resp['data']['choices'][0]['message'] ?? [];
+    $textOut = extract_message_text(is_array($message) ? $message : []);
+    if ($textOut === '') {
+        return [];
+    }
+
+    $parsed = json_decode($textOut, true);
+    if (!is_array($parsed) || !isset($parsed['pairs']) || !is_array($parsed['pairs'])) {
+        return [];
+    }
+
+    $pairs = [];
+    foreach ($parsed['pairs'] as $item) {
+        if (!is_array($item)) {
+            continue;
+        }
+        $en = trim((string) ($item['english'] ?? ''));
+        $zh = trim((string) ($item['cantonese'] ?? ''));
+        $yale = trim((string) ($item['yale'] ?? ''));
+        if ($en === '' || $zh === '') {
+            continue;
+        }
+        $pairs[] = [
+            'english' => $en,
+            'cantonese' => $zh,
+            'yale' => $yale,
+        ];
+        if (count($pairs) >= 12) {
+            break;
+        }
+    }
+
+    return $pairs;
+}
+
 $apiKey = trim((string) ($config['dashscope_api_key'] ?? ''));
 if ($apiKey === '') {
     json_response(['ok' => false, 'error' => 'dashscope_api_key is empty in config.php'], 500);
@@ -195,6 +267,16 @@ if (!$withEnglish) {
 
 $transcriptYale = generate_yale_romanization($transcript, $baseUrl, $apiKey, $chatModel);
 $replyCantoneseYale = generate_yale_romanization($replyCantonese, $baseUrl, $apiKey, $chatModel);
+$alignmentPairs = $withEnglish
+    ? generate_alignment_pairs(
+        $replyCantonese,
+        $replyCantoneseYale,
+        $explainEnglish,
+        $baseUrl,
+        $apiKey,
+        $chatModel
+    )
+    : [];
 
 $ttsModel = (string) ($config['tts_model'] ?? 'qwen3-tts-flash');
 $ttsPayload = [
@@ -279,5 +361,6 @@ json_response([
     'reply_cantonese' => $replyCantonese,
     'reply_cantonese_yale' => $replyCantoneseYale,
     'explanation_english' => $explainEnglish,
+    'alignment_pairs' => $alignmentPairs,
     'audio_url' => $audioUrl,
 ]);

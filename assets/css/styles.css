@@ -28,3 +28,23 @@ body {
 #history .entry:last-child {
     border-bottom: 0;
 }
+
+.eng-token {
+    cursor: pointer;
+    border-radius: 0.3rem;
+    padding: 0 0.1rem;
+}
+
+.eng-token:hover {
+    background: #ffe7ae;
+}
+
+.eng-token.active {
+    background: #ffd26b;
+}
+
+.hl-match {
+    background: #ffe08a;
+    border-radius: 0.2rem;
+    padding: 0 0.08rem;
+}

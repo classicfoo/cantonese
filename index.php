@@ -42,6 +42,7 @@
 
                     <section class="result-box mb-3">
                         <h2 class="h6 text-uppercase">English explanation</h2>
+                        <p class="small text-secondary mb-1">Tap an English word to highlight matching Cantonese + Yale.</p>
                         <p id="replyEnglish" class="mb-0 text-body-emphasis">-</p>
                     </section>
 
