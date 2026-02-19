@@ -31,11 +31,13 @@
                     <section class="result-box mb-3">
                         <h2 class="h6 text-uppercase">You said</h2>
                         <p id="transcript" class="mb-0 text-body-emphasis">-</p>
+                        <p id="transcriptYale" class="mb-0 text-secondary small">-</p>
                     </section>
 
                     <section class="result-box mb-3">
                         <h2 class="h6 text-uppercase">Coach reply (Cantonese)</h2>
                         <p id="replyCantonese" class="mb-0 text-body-emphasis">-</p>
+                        <p id="replyCantoneseYale" class="mb-0 text-secondary small">-</p>
                     </section>
 
                     <section class="result-box mb-3">

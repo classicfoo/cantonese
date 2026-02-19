@@ -25,11 +25,28 @@ function db_connect(array $config): PDO
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             created_at TEXT NOT NULL,
             transcript TEXT NOT NULL,
+            transcript_yale TEXT,
             reply_cantonese TEXT NOT NULL,
+            reply_cantonese_yale TEXT,
             explanation_english TEXT,
             tts_audio_url TEXT
         )'
     );
 
+    ensure_column($pdo, 'practice_logs', 'transcript_yale', 'TEXT');
+    ensure_column($pdo, 'practice_logs', 'reply_cantonese_yale', 'TEXT');
+
     return $pdo;
+}
+
+function ensure_column(PDO $pdo, string $table, string $column, string $definition): void
+{
+    $stmt = $pdo->query("PRAGMA table_info($table)");
+    $cols = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($cols as $col) {
+        if (($col['name'] ?? '') === $column) {
+            return;
+        }
+    }
+    $pdo->exec("ALTER TABLE $table ADD COLUMN $column $definition");
 }

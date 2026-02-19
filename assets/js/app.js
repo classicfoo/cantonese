@@ -3,7 +3,9 @@ const stopBtn = document.getElementById('stopBtn');
 const withEnglish = document.getElementById('withEnglish');
 const statusBox = document.getElementById('status');
 const transcriptBox = document.getElementById('transcript');
+const transcriptYaleBox = document.getElementById('transcriptYale');
 const replyCantoneseBox = document.getElementById('replyCantonese');
+const replyCantoneseYaleBox = document.getElementById('replyCantoneseYale');
 const replyEnglishBox = document.getElementById('replyEnglish');
 const audioPlayer = document.getElementById('audioPlayer');
 const historyBox = document.getElementById('history');
@@ -36,11 +38,15 @@ async function loadHistory() {
 
   historyBox.innerHTML = data.items.map((item) => {
     const english = item.explanation_english ? `<div><strong>EN:</strong> ${escapeHtml(item.explanation_english)}</div>` : '';
+    const youYale = item.transcript_yale ? `<div class="text-muted"><strong>You (Yale):</strong> ${escapeHtml(item.transcript_yale)}</div>` : '';
+    const coachYale = item.reply_cantonese_yale ? `<div class="text-muted"><strong>Coach (Yale):</strong> ${escapeHtml(item.reply_cantonese_yale)}</div>` : '';
     return `
       <div class="entry">
         <div class="text-muted">${escapeHtml(item.created_at)} UTC</div>
         <div><strong>You:</strong> ${escapeHtml(item.transcript)}</div>
+        ${youYale}
         <div><strong>Coach:</strong> ${escapeHtml(item.reply_cantonese)}</div>
+        ${coachYale}
         ${english}
       </div>
     `;
@@ -83,7 +89,9 @@ startBtn.addEventListener('click', async () => {
       }
 
       transcriptBox.textContent = payload.transcript || '-';
+      transcriptYaleBox.textContent = payload.transcript_yale || '-';
       replyCantoneseBox.textContent = payload.reply_cantonese || '-';
+      replyCantoneseYaleBox.textContent = payload.reply_cantonese_yale || '-';
       replyEnglishBox.textContent = payload.explanation_english || '-';
 
       if (payload.audio_url) {

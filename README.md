@@ -5,6 +5,7 @@ A mobile-responsive web app for Cantonese speaking practice:
 - Transcribe with Qwen ASR
 - Generate tutor reply with Qwen chat model
 - Optionally include a short English explanation
+- Show Yale romanization for Cantonese Chinese text
 - Convert Cantonese reply to speech with Qwen TTS
 - Save recent turns in SQLite
 

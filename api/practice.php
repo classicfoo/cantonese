@@ -5,6 +5,52 @@ declare(strict_types=1);
 require __DIR__ . '/bootstrap.php';
 require __DIR__ . '/db.php';
 
+function contains_han(string $text): bool
+{
+    return preg_match('/\p{Han}/u', $text) === 1;
+}
+
+function generate_yale_romanization(
+    string $text,
+    string $baseUrl,
+    string $apiKey,
+    string $chatModel
+): string {
+    if ($text === '' || !contains_han($text)) {
+        return '';
+    }
+
+    $payload = [
+        'model' => $chatModel,
+        'messages' => [
+            [
+                'role' => 'system',
+                'content' => 'Convert Cantonese Traditional Chinese text to Yale romanization. '
+                    . 'Return STRICT JSON: {"yale":"..."} only. Keep punctuation and sentence order.',
+            ],
+            ['role' => 'user', 'content' => $text],
+        ],
+        'stream' => false,
+        'temperature' => 0.1,
+    ];
+
+    $resp = post_json($baseUrl . '/compatible-mode/v1/chat/completions', $payload, $apiKey);
+    if (!$resp['ok']) {
+        return '';
+    }
+
+    $message = $resp['data']['choices'][0]['message'] ?? [];
+    $textOut = extract_message_text(is_array($message) ? $message : []);
+    if ($textOut === '') {
+        return '';
+    }
+    $parsed = json_decode($textOut, true);
+    if (!is_array($parsed)) {
+        return '';
+    }
+    return trim((string) ($parsed['yale'] ?? ''));
+}
+
 $apiKey = trim((string) ($config['dashscope_api_key'] ?? ''));
 if ($apiKey === '') {
     json_response(['ok' => false, 'error' => 'dashscope_api_key is empty in config.php'], 500);
@@ -108,6 +154,10 @@ if (!$withEnglish) {
     $explainEnglish = '';
 }
 
+$chatModel = (string) ($config['chat_model'] ?? 'qwen-plus');
+$transcriptYale = generate_yale_romanization($transcript, $baseUrl, $apiKey, $chatModel);
+$replyCantoneseYale = generate_yale_romanization($replyCantonese, $baseUrl, $apiKey, $chatModel);
+
 $ttsModel = (string) ($config['tts_model'] ?? 'qwen3-tts-flash');
 $ttsPayload = [
     'model' => $ttsModel,
@@ -139,7 +189,9 @@ if (!$ttsResp['ok']) {
         'status' => $ttsResp['status'],
         'details' => $ttsResp['data'],
         'transcript' => $transcript,
+        'transcript_yale' => $transcriptYale,
         'reply_cantonese' => $replyCantonese,
+        'reply_cantonese_yale' => $replyCantoneseYale,
         'explanation_english' => $explainEnglish,
     ], 502);
 }
@@ -155,13 +207,30 @@ if ($audioUrl === '' && isset($ttsData['output']['audio_url']) && is_string($tts
 
 $pdo = db_connect($config);
 $stmt = $pdo->prepare(
-    'INSERT INTO practice_logs (created_at, transcript, reply_cantonese, explanation_english, tts_audio_url)
-     VALUES (:created_at, :transcript, :reply_cantonese, :explanation_english, :tts_audio_url)'
+    'INSERT INTO practice_logs (
+        created_at,
+        transcript,
+        transcript_yale,
+        reply_cantonese,
+        reply_cantonese_yale,
+        explanation_english,
+        tts_audio_url
+    ) VALUES (
+        :created_at,
+        :transcript,
+        :transcript_yale,
+        :reply_cantonese,
+        :reply_cantonese_yale,
+        :explanation_english,
+        :tts_audio_url
+    )'
 );
 $stmt->execute([
     ':created_at' => gmdate('Y-m-d H:i:s'),
     ':transcript' => $transcript,
+    ':transcript_yale' => $transcriptYale,
     ':reply_cantonese' => $replyCantonese,
+    ':reply_cantonese_yale' => $replyCantoneseYale,
     ':explanation_english' => $explainEnglish,
     ':tts_audio_url' => $audioUrl,
 ]);
@@ -169,7 +238,9 @@ $stmt->execute([
 json_response([
     'ok' => true,
     'transcript' => $transcript,
+    'transcript_yale' => $transcriptYale,
     'reply_cantonese' => $replyCantonese,
+    'reply_cantonese_yale' => $replyCantoneseYale,
     'explanation_english' => $explainEnglish,
     'audio_url' => $audioUrl,
 ]);

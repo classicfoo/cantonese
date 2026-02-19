@@ -7,7 +7,7 @@ require __DIR__ . '/db.php';
 
 $pdo = db_connect($config);
 $rows = $pdo->query(
-    'SELECT id, created_at, transcript, reply_cantonese, explanation_english, tts_audio_url
+    'SELECT id, created_at, transcript, transcript_yale, reply_cantonese, reply_cantonese_yale, explanation_english, tts_audio_url
      FROM practice_logs ORDER BY id DESC LIMIT 30'
 )->fetchAll(PDO::FETCH_ASSOC);
 
