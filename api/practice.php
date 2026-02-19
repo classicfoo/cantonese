@@ -58,7 +58,7 @@ if ($transcript === '') {
     ], 502);
 }
 
-$systemPrompt = 'You are a Cantonese speaking coach. Reply in Traditional Chinese Cantonese style, natural and short. '
+$systemPrompt = 'You are a Cantonese speaking coach. Reply in spoken Hong Kong Cantonese (粵語口語), using Traditional Chinese characters and natural Cantonese particles. '
     . 'Return STRICT JSON only with keys: cantonese_reply, english_explanation. '
     . 'If english explanation is not requested, english_explanation should be an empty string.';
 
@@ -108,9 +108,10 @@ $ttsPayload = [
     'model' => (string) ($config['tts_model'] ?? 'qwen3-tts-flash'),
     'input' => [
         'text' => $replyCantonese,
+        'voice' => (string) ($config['tts_voice'] ?? 'Kiki'),
+        'language_type' => (string) ($config['tts_language_type'] ?? 'Chinese'),
     ],
     'parameters' => [
-        'voice' => (string) ($config['tts_voice'] ?? 'Cherry'),
         'volume' => (int) ($config['tts_volume'] ?? 50),
         'speed' => (float) ($config['tts_speed'] ?? 1.0),
         'pitch' => (float) ($config['tts_pitch'] ?? 1.0),

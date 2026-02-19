@@ -11,8 +11,10 @@ return [
     // Try yue for Cantonese; if unavailable for your account/region, use zh.
     'asr_language' => 'yue',
 
-    // Voice options depend on your account's available voices.
-    'tts_voice' => 'Cherry',
+    // Cantonese-capable voices include Kiki (female) and Rocky (male).
+    'tts_voice' => 'Kiki',
+    // Qwen TTS language_type examples: Chinese, English, Japanese...
+    'tts_language_type' => 'Chinese',
     'tts_volume' => 50,
     'tts_speed' => 1.0,
     'tts_pitch' => 1.0,

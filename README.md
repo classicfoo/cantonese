@@ -32,5 +32,6 @@ Open `http://127.0.0.1:8080`.
 ## Notes
 
 - This implementation uses short recorded audio upload (not real-time websocket streaming) for compatibility with shared hosting + PHP.
+- For Cantonese TTS, prefer `tts_voice` = `Kiki` or `Rocky` in `config.php`.
 - If your account/region has different model IDs or voice names, update `config.php`.
 - If Cantonese language code is rejected, try `zh` in `asr_language`.
