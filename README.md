@@ -28,10 +28,12 @@ Open `http://127.0.0.1:8080`.
 2. Ensure `config.php` exists on server with your API key
 3. Ensure `data/` is writable so SQLite file can be created
 4. Visit your domain and allow microphone permission
+5. If you use this repo's GitHub Action deploy job, `config.php` is excluded from delete-sync by default, so it stays on server.
 
 ## Notes
 
 - This implementation uses short recorded audio upload (not real-time websocket streaming) for compatibility with shared hosting + PHP.
-- For Cantonese TTS, prefer `tts_voice` = `Kiki` or `Rocky` in `config.php`.
+- For Cantonese TTS, prefer `tts_voice` = `Rocky` or `Kiki` in `config.php`.
+- For stronger Cantonese control, use `tts_model` = `qwen3-tts-instruct-flash` with `tts_instructions`.
 - If your account/region has different model IDs or voice names, update `config.php`.
 - If Cantonese language code is rejected, try `zh` in `asr_language`.

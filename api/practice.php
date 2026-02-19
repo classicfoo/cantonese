@@ -58,7 +58,11 @@ if ($transcript === '') {
     ], 502);
 }
 
-$systemPrompt = 'You are a Cantonese speaking coach. Reply in spoken Hong Kong Cantonese (粵語口語), using Traditional Chinese characters and natural Cantonese particles. '
+$systemPrompt = 'You are a Cantonese speaking coach. Always answer in spoken Hong Kong Cantonese (粵語口語), '
+    . 'using Traditional Chinese characters and natural particles like 啦、喎、㗎、呀. '
+    . 'Avoid Mandarin wording such as 是、不、什么、你们、我们、他们. '
+    . 'Prefer Cantonese wording such as 係、唔、乜嘢、你哋、我哋、佢哋. '
+    . 'Keep the Cantonese reply short and conversational (1-3 sentences). '
     . 'Return STRICT JSON only with keys: cantonese_reply, english_explanation. '
     . 'If english explanation is not requested, english_explanation should be an empty string.';
 
@@ -73,7 +77,7 @@ $chatPayload = [
         ['role' => 'user', 'content' => $userInstruction . "\n\nLearner said (Cantonese): " . $transcript],
     ],
     'stream' => false,
-    'temperature' => 0.6,
+    'temperature' => 0.5,
 ];
 
 $chatResp = post_json($baseUrl . '/compatible-mode/v1/chat/completions', $chatPayload, $apiKey);
@@ -104,8 +108,9 @@ if (!$withEnglish) {
     $explainEnglish = '';
 }
 
+$ttsModel = (string) ($config['tts_model'] ?? 'qwen3-tts-flash');
 $ttsPayload = [
-    'model' => (string) ($config['tts_model'] ?? 'qwen3-tts-flash'),
+    'model' => $ttsModel,
     'input' => [
         'text' => $replyCantonese,
         'voice' => (string) ($config['tts_voice'] ?? 'Kiki'),
@@ -117,6 +122,14 @@ $ttsPayload = [
         'pitch' => (float) ($config['tts_pitch'] ?? 1.0),
     ],
 ];
+
+if (str_contains($ttsModel, 'instruct')) {
+    $ttsPayload['parameters']['instructions'] = (string) (
+        $config['tts_instructions']
+        ?? 'Use natural Hong Kong Cantonese pronunciation and colloquial rhythm. Do not use Mandarin pronunciation.'
+    );
+    $ttsPayload['parameters']['optimize_instructions'] = true;
+}
 
 $ttsResp = post_json($baseUrl . '/api/v1/services/aigc/multimodal-generation/generation', $ttsPayload, $apiKey);
 if (!$ttsResp['ok']) {
