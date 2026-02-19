@@ -8,6 +8,7 @@ A mobile-responsive web app for Cantonese speaking practice:
 - Show Yale romanization for Cantonese Chinese text
 - Convert Cantonese reply to speech with Qwen TTS
 - Save recent turns in SQLite
+- Uses previous turn context so follow-up questions can reference the last coach reply
 
 ## 1) Configure API
 

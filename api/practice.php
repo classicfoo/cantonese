@@ -104,10 +104,19 @@ if ($transcript === '') {
     ], 502);
 }
 
+$chatModel = (string) ($config['chat_model'] ?? 'qwen-plus');
+$pdo = db_connect($config);
+$prevStmt = $pdo->query(
+    'SELECT transcript, transcript_yale, reply_cantonese, reply_cantonese_yale, explanation_english
+     FROM practice_logs ORDER BY id DESC LIMIT 1'
+);
+$previousTurn = $prevStmt->fetch(PDO::FETCH_ASSOC);
+
 $systemPrompt = 'You are a Cantonese speaking coach. Always answer in spoken Hong Kong Cantonese (粵語口語), '
     . 'using Traditional Chinese characters and natural particles like 啦、喎、㗎、呀. '
     . 'Avoid Mandarin wording such as 是、不、什么、你们、我们、他们. '
     . 'Prefer Cantonese wording such as 係、唔、乜嘢、你哋、我哋、佢哋. '
+    . 'Use conversation context: if user asks follow-up questions, explain your previous reply clearly. '
     . 'Keep the Cantonese reply short and conversational (1-3 sentences). '
     . 'Return STRICT JSON only with keys: cantonese_reply, english_explanation. '
     . 'If english explanation is not requested, english_explanation should be an empty string.';
@@ -116,11 +125,41 @@ $userInstruction = $withEnglish
     ? 'User wants a quick English explanation too.'
     : 'Do not provide English explanation.';
 
+$contextText = 'No previous turn.';
+if (is_array($previousTurn)) {
+    $contextParts = [];
+    if (!empty($previousTurn['transcript'])) {
+        $contextParts[] = 'Previous user: ' . $previousTurn['transcript'];
+    }
+    if (!empty($previousTurn['transcript_yale'])) {
+        $contextParts[] = 'Previous user (Yale): ' . $previousTurn['transcript_yale'];
+    }
+    if (!empty($previousTurn['reply_cantonese'])) {
+        $contextParts[] = 'Previous coach: ' . $previousTurn['reply_cantonese'];
+    }
+    if (!empty($previousTurn['reply_cantonese_yale'])) {
+        $contextParts[] = 'Previous coach (Yale): ' . $previousTurn['reply_cantonese_yale'];
+    }
+    if (!empty($previousTurn['explanation_english'])) {
+        $contextParts[] = 'Previous coach English explanation: ' . $previousTurn['explanation_english'];
+    }
+    if ($contextParts !== []) {
+        $contextText = implode("\n", $contextParts);
+    }
+}
+
 $chatPayload = [
-    'model' => (string) ($config['chat_model'] ?? 'qwen-plus'),
+    'model' => $chatModel,
     'messages' => [
         ['role' => 'system', 'content' => $systemPrompt],
-        ['role' => 'user', 'content' => $userInstruction . "\n\nLearner said (Cantonese): " . $transcript],
+        [
+            'role' => 'user',
+            'content' => $userInstruction
+                . "\n\nConversation context (last turn):\n"
+                . $contextText
+                . "\n\nLearner said (current turn, Cantonese): "
+                . $transcript,
+        ],
     ],
     'stream' => false,
     'temperature' => 0.5,
@@ -154,7 +193,6 @@ if (!$withEnglish) {
     $explainEnglish = '';
 }
 
-$chatModel = (string) ($config['chat_model'] ?? 'qwen-plus');
 $transcriptYale = generate_yale_romanization($transcript, $baseUrl, $apiKey, $chatModel);
 $replyCantoneseYale = generate_yale_romanization($replyCantonese, $baseUrl, $apiKey, $chatModel);
 
@@ -205,7 +243,6 @@ if ($audioUrl === '' && isset($ttsData['output']['audio_url']) && is_string($tts
     $audioUrl = $ttsData['output']['audio_url'];
 }
 
-$pdo = db_connect($config);
 $stmt = $pdo->prepare(
     'INSERT INTO practice_logs (
         created_at,
