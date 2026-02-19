@@ -1,0 +1,30 @@
+:root {
+    --bg1: #f4f8ff;
+    --bg2: #eefcf3;
+    --card: #ffffff;
+}
+
+body {
+    min-height: 100vh;
+    background: linear-gradient(140deg, var(--bg1), var(--bg2));
+}
+
+.app-shell {
+    background: var(--card);
+}
+
+.result-box {
+    border: 1px solid #e8edf5;
+    border-radius: 0.75rem;
+    padding: 0.85rem 1rem;
+    background: #fcfdff;
+}
+
+#history .entry {
+    border-bottom: 1px dashed #dbe3ef;
+    padding: 0.65rem 0;
+}
+
+#history .entry:last-child {
+    border-bottom: 0;
+}
