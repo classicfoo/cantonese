@@ -9,7 +9,8 @@ const correctedCantoneseYaleBox = document.getElementById('correctedCantoneseYal
 const replyCantoneseBox = document.getElementById('replyCantonese');
 const replyCantoneseYaleBox = document.getElementById('replyCantoneseYale');
 const replyEnglishBox = document.getElementById('replyEnglish');
-const audioPlayer = document.getElementById('audioPlayer');
+const correctedAudioPlayer = document.getElementById('correctedAudioPlayer');
+const replyAudioPlayer = document.getElementById('replyAudioPlayer');
 const historyBox = document.getElementById('history');
 const clearHistoryBtn = document.getElementById('clearHistoryBtn');
 
@@ -202,9 +203,18 @@ startBtn.addEventListener('click', async () => {
       replyCantoneseYaleBox.textContent = currentReplyYale || '-';
       renderEnglishExplanation(currentEnglish, currentAlignmentPairs);
 
-      if (payload.audio_url) {
-        audioPlayer.src = payload.audio_url;
-        audioPlayer.play().catch(() => {});
+      if (payload.corrected_audio_url) {
+        correctedAudioPlayer.src = payload.corrected_audio_url;
+      } else {
+        correctedAudioPlayer.removeAttribute('src');
+        correctedAudioPlayer.load();
+      }
+      if (payload.reply_audio_url) {
+        replyAudioPlayer.src = payload.reply_audio_url;
+        replyAudioPlayer.play().catch(() => {});
+      } else {
+        replyAudioPlayer.removeAttribute('src');
+        replyAudioPlayer.load();
       }
 
       setStatus('Done. Tap English words to highlight mapped Cantonese.', 'success');

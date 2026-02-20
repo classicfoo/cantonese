@@ -31,6 +31,8 @@ function db_connect(array $config): PDO
             reply_cantonese TEXT NOT NULL,
             reply_cantonese_yale TEXT,
             explanation_english TEXT,
+            corrected_tts_audio_url TEXT,
+            reply_tts_audio_url TEXT,
             tts_audio_url TEXT
         )'
     );
@@ -39,6 +41,8 @@ function db_connect(array $config): PDO
     ensure_column($pdo, 'practice_logs', 'corrected_cantonese', 'TEXT');
     ensure_column($pdo, 'practice_logs', 'corrected_cantonese_yale', 'TEXT');
     ensure_column($pdo, 'practice_logs', 'reply_cantonese_yale', 'TEXT');
+    ensure_column($pdo, 'practice_logs', 'corrected_tts_audio_url', 'TEXT');
+    ensure_column($pdo, 'practice_logs', 'reply_tts_audio_url', 'TEXT');
 
     return $pdo;
 }

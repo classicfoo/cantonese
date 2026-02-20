@@ -123,6 +123,61 @@ function generate_alignment_pairs(
     return $pairs;
 }
 
+function synthesize_tts(
+    string $text,
+    string $baseUrl,
+    string $apiKey,
+    array $config
+): array {
+    if ($text === '') {
+        return ['ok' => true, 'audio_url' => ''];
+    }
+
+    $ttsModel = (string) ($config['tts_model'] ?? 'qwen3-tts-flash');
+    $ttsPayload = [
+        'model' => $ttsModel,
+        'input' => [
+            'text' => $text,
+            'voice' => (string) ($config['tts_voice'] ?? 'Kiki'),
+            'language_type' => (string) ($config['tts_language_type'] ?? 'Chinese'),
+        ],
+        'parameters' => [
+            'volume' => (int) ($config['tts_volume'] ?? 50),
+            'speed' => (float) ($config['tts_speed'] ?? 1.0),
+            'pitch' => (float) ($config['tts_pitch'] ?? 1.0),
+        ],
+    ];
+
+    if (str_contains($ttsModel, 'instruct')) {
+        $ttsPayload['parameters']['instructions'] = (string) (
+            $config['tts_instructions']
+            ?? 'Use natural Hong Kong Cantonese pronunciation and colloquial rhythm. Do not use Mandarin pronunciation.'
+        );
+        $ttsPayload['parameters']['optimize_instructions'] = true;
+    }
+
+    $ttsResp = post_json($baseUrl . '/api/v1/services/aigc/multimodal-generation/generation', $ttsPayload, $apiKey);
+    if (!$ttsResp['ok']) {
+        return [
+            'ok' => false,
+            'status' => $ttsResp['status'],
+            'details' => $ttsResp['data'],
+            'audio_url' => '',
+        ];
+    }
+
+    $ttsData = $ttsResp['data'];
+    $audioUrl = '';
+    if (isset($ttsData['output']['audio']['url']) && is_string($ttsData['output']['audio']['url'])) {
+        $audioUrl = $ttsData['output']['audio']['url'];
+    }
+    if ($audioUrl === '' && isset($ttsData['output']['audio_url']) && is_string($ttsData['output']['audio_url'])) {
+        $audioUrl = $ttsData['output']['audio_url'];
+    }
+
+    return ['ok' => true, 'audio_url' => $audioUrl];
+}
+
 $apiKey = trim((string) ($config['dashscope_api_key'] ?? ''));
 if ($apiKey === '') {
     json_response(['ok' => false, 'error' => 'dashscope_api_key is empty in config.php'], 500);
@@ -285,36 +340,14 @@ $alignmentPairs = $withEnglish
     )
     : [];
 
-$ttsModel = (string) ($config['tts_model'] ?? 'qwen3-tts-flash');
-$ttsPayload = [
-    'model' => $ttsModel,
-    'input' => [
-        'text' => $replyCantonese,
-        'voice' => (string) ($config['tts_voice'] ?? 'Kiki'),
-        'language_type' => (string) ($config['tts_language_type'] ?? 'Chinese'),
-    ],
-    'parameters' => [
-        'volume' => (int) ($config['tts_volume'] ?? 50),
-        'speed' => (float) ($config['tts_speed'] ?? 1.0),
-        'pitch' => (float) ($config['tts_pitch'] ?? 1.0),
-    ],
-];
-
-if (str_contains($ttsModel, 'instruct')) {
-    $ttsPayload['parameters']['instructions'] = (string) (
-        $config['tts_instructions']
-        ?? 'Use natural Hong Kong Cantonese pronunciation and colloquial rhythm. Do not use Mandarin pronunciation.'
-    );
-    $ttsPayload['parameters']['optimize_instructions'] = true;
-}
-
-$ttsResp = post_json($baseUrl . '/api/v1/services/aigc/multimodal-generation/generation', $ttsPayload, $apiKey);
-if (!$ttsResp['ok']) {
+$correctedAudio = synthesize_tts($correctedCantonese, $baseUrl, $apiKey, $config);
+$replyAudio = synthesize_tts($replyCantonese, $baseUrl, $apiKey, $config);
+if (!$replyAudio['ok']) {
     json_response([
         'ok' => false,
-        'error' => 'TTS request failed',
-        'status' => $ttsResp['status'],
-        'details' => $ttsResp['data'],
+        'error' => 'Reply TTS request failed',
+        'status' => $replyAudio['status'] ?? 502,
+        'details' => $replyAudio['details'] ?? [],
         'transcript' => $transcript,
         'transcript_yale' => $transcriptYale,
         'corrected_cantonese' => $correctedCantonese,
@@ -324,15 +357,8 @@ if (!$ttsResp['ok']) {
         'explanation_english' => $explainEnglish,
     ], 502);
 }
-
-$ttsData = $ttsResp['data'];
-$audioUrl = '';
-if (isset($ttsData['output']['audio']['url']) && is_string($ttsData['output']['audio']['url'])) {
-    $audioUrl = $ttsData['output']['audio']['url'];
-}
-if ($audioUrl === '' && isset($ttsData['output']['audio_url']) && is_string($ttsData['output']['audio_url'])) {
-    $audioUrl = $ttsData['output']['audio_url'];
-}
+$correctedAudioUrl = (string) ($correctedAudio['audio_url'] ?? '');
+$replyAudioUrl = (string) ($replyAudio['audio_url'] ?? '');
 
 $stmt = $pdo->prepare(
     'INSERT INTO practice_logs (
@@ -344,6 +370,8 @@ $stmt = $pdo->prepare(
         reply_cantonese,
         reply_cantonese_yale,
         explanation_english,
+        corrected_tts_audio_url,
+        reply_tts_audio_url,
         tts_audio_url
     ) VALUES (
         :created_at,
@@ -354,6 +382,8 @@ $stmt = $pdo->prepare(
         :reply_cantonese,
         :reply_cantonese_yale,
         :explanation_english,
+        :corrected_tts_audio_url,
+        :reply_tts_audio_url,
         :tts_audio_url
     )'
 );
@@ -366,7 +396,9 @@ $stmt->execute([
     ':reply_cantonese' => $replyCantonese,
     ':reply_cantonese_yale' => $replyCantoneseYale,
     ':explanation_english' => $explainEnglish,
-    ':tts_audio_url' => $audioUrl,
+    ':corrected_tts_audio_url' => $correctedAudioUrl,
+    ':reply_tts_audio_url' => $replyAudioUrl,
+    ':tts_audio_url' => $replyAudioUrl,
 ]);
 
 json_response([
@@ -379,5 +411,7 @@ json_response([
     'reply_cantonese_yale' => $replyCantoneseYale,
     'explanation_english' => $explainEnglish,
     'alignment_pairs' => $alignmentPairs,
-    'audio_url' => $audioUrl,
+    'corrected_audio_url' => $correctedAudioUrl,
+    'reply_audio_url' => $replyAudioUrl,
+    'audio_url' => $replyAudioUrl,
 ]);
