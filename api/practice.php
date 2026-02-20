@@ -190,7 +190,8 @@ $systemPrompt = 'You are a Cantonese speaking coach. Always answer in spoken Hon
     . 'Prefer Cantonese wording such as 係、唔、乜嘢、你哋、我哋、佢哋. '
     . 'Use conversation context: if user asks follow-up questions, explain your previous reply clearly. '
     . 'Keep the Cantonese reply short and conversational (1-3 sentences). '
-    . 'Return STRICT JSON only with keys: cantonese_reply, english_explanation. '
+    . 'Also provide a corrected Cantonese version of user intent. '
+    . 'Return STRICT JSON only with keys: corrected_cantonese, cantonese_reply, english_explanation. '
     . 'If english explanation is not requested, english_explanation should be an empty string.';
 
 $userInstruction = $withEnglish
@@ -251,13 +252,18 @@ $chatMessage = $chatResp['data']['choices'][0]['message'] ?? [];
 $chatText = extract_message_text(is_array($chatMessage) ? $chatMessage : []);
 
 $replyCantonese = '';
+$correctedCantonese = '';
 $explainEnglish = '';
 $parsed = json_decode($chatText, true);
 if (is_array($parsed)) {
+    $correctedCantonese = trim((string) ($parsed['corrected_cantonese'] ?? ''));
     $replyCantonese = trim((string) ($parsed['cantonese_reply'] ?? ''));
     $explainEnglish = trim((string) ($parsed['english_explanation'] ?? ''));
 }
 
+if ($correctedCantonese === '') {
+    $correctedCantonese = $transcript;
+}
 if ($replyCantonese === '') {
     $replyCantonese = $chatText;
 }
@@ -266,6 +272,7 @@ if (!$withEnglish) {
 }
 
 $transcriptYale = generate_yale_romanization($transcript, $baseUrl, $apiKey, $chatModel);
+$correctedCantoneseYale = generate_yale_romanization($correctedCantonese, $baseUrl, $apiKey, $chatModel);
 $replyCantoneseYale = generate_yale_romanization($replyCantonese, $baseUrl, $apiKey, $chatModel);
 $alignmentPairs = $withEnglish
     ? generate_alignment_pairs(
@@ -310,6 +317,8 @@ if (!$ttsResp['ok']) {
         'details' => $ttsResp['data'],
         'transcript' => $transcript,
         'transcript_yale' => $transcriptYale,
+        'corrected_cantonese' => $correctedCantonese,
+        'corrected_cantonese_yale' => $correctedCantoneseYale,
         'reply_cantonese' => $replyCantonese,
         'reply_cantonese_yale' => $replyCantoneseYale,
         'explanation_english' => $explainEnglish,
@@ -330,6 +339,8 @@ $stmt = $pdo->prepare(
         created_at,
         transcript,
         transcript_yale,
+        corrected_cantonese,
+        corrected_cantonese_yale,
         reply_cantonese,
         reply_cantonese_yale,
         explanation_english,
@@ -338,6 +349,8 @@ $stmt = $pdo->prepare(
         :created_at,
         :transcript,
         :transcript_yale,
+        :corrected_cantonese,
+        :corrected_cantonese_yale,
         :reply_cantonese,
         :reply_cantonese_yale,
         :explanation_english,
@@ -348,6 +361,8 @@ $stmt->execute([
     ':created_at' => gmdate('Y-m-d H:i:s'),
     ':transcript' => $transcript,
     ':transcript_yale' => $transcriptYale,
+    ':corrected_cantonese' => $correctedCantonese,
+    ':corrected_cantonese_yale' => $correctedCantoneseYale,
     ':reply_cantonese' => $replyCantonese,
     ':reply_cantonese_yale' => $replyCantoneseYale,
     ':explanation_english' => $explainEnglish,
@@ -358,6 +373,8 @@ json_response([
     'ok' => true,
     'transcript' => $transcript,
     'transcript_yale' => $transcriptYale,
+    'corrected_cantonese' => $correctedCantonese,
+    'corrected_cantonese_yale' => $correctedCantoneseYale,
     'reply_cantonese' => $replyCantonese,
     'reply_cantonese_yale' => $replyCantoneseYale,
     'explanation_english' => $explainEnglish,

@@ -26,6 +26,8 @@ function db_connect(array $config): PDO
             created_at TEXT NOT NULL,
             transcript TEXT NOT NULL,
             transcript_yale TEXT,
+            corrected_cantonese TEXT,
+            corrected_cantonese_yale TEXT,
             reply_cantonese TEXT NOT NULL,
             reply_cantonese_yale TEXT,
             explanation_english TEXT,
@@ -34,6 +36,8 @@ function db_connect(array $config): PDO
     );
 
     ensure_column($pdo, 'practice_logs', 'transcript_yale', 'TEXT');
+    ensure_column($pdo, 'practice_logs', 'corrected_cantonese', 'TEXT');
+    ensure_column($pdo, 'practice_logs', 'corrected_cantonese_yale', 'TEXT');
     ensure_column($pdo, 'practice_logs', 'reply_cantonese_yale', 'TEXT');
 
     return $pdo;

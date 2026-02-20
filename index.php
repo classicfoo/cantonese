@@ -35,6 +35,12 @@
                     </section>
 
                     <section class="result-box mb-3">
+                        <h2 class="h6 text-uppercase">Better Way To Say It (Cantonese)</h2>
+                        <p id="correctedCantonese" class="mb-0 text-body-emphasis">-</p>
+                        <p id="correctedCantoneseYale" class="mb-0 text-secondary small">-</p>
+                    </section>
+
+                    <section class="result-box mb-3">
                         <h2 class="h6 text-uppercase">Coach reply (Cantonese)</h2>
                         <p id="replyCantonese" class="mb-0 text-body-emphasis">-</p>
                         <p id="replyCantoneseYale" class="mb-0 text-secondary small">-</p>

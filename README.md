@@ -3,6 +3,7 @@
 A mobile-responsive web app for Cantonese speaking practice:
 - Record your voice in Cantonese
 - Transcribe with Qwen ASR
+- Show a corrected/natural Cantonese version of what the learner intended to say
 - Generate tutor reply with Qwen chat model
 - Optionally include a short English explanation
 - Show Yale romanization for Cantonese Chinese text

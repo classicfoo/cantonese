@@ -4,6 +4,8 @@ const withEnglish = document.getElementById('withEnglish');
 const statusBox = document.getElementById('status');
 const transcriptBox = document.getElementById('transcript');
 const transcriptYaleBox = document.getElementById('transcriptYale');
+const correctedCantoneseBox = document.getElementById('correctedCantonese');
+const correctedCantoneseYaleBox = document.getElementById('correctedCantoneseYale');
 const replyCantoneseBox = document.getElementById('replyCantonese');
 const replyCantoneseYaleBox = document.getElementById('replyCantoneseYale');
 const replyEnglishBox = document.getElementById('replyEnglish');
@@ -48,12 +50,6 @@ function normalizeEnglishWord(word) {
 
 function escapeRegExp(str) {
   return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function highlightPhrase(text, phrase) {
-  if (!phrase || !text) return escapeHtml(text || '');
-  const pattern = new RegExp(escapeRegExp(phrase), 'gi');
-  return escapeHtml(text).replace(pattern, (m) => `<span class="hl-match">${m}</span>`);
 }
 
 function highlightMappedPhrase(text, mappedPhrases) {
@@ -147,12 +143,16 @@ async function loadHistory() {
   historyBox.innerHTML = data.items.map((item) => {
     const english = item.explanation_english ? `<div><strong>EN:</strong> ${escapeHtml(item.explanation_english)}</div>` : '';
     const youYale = item.transcript_yale ? `<div class="text-muted"><strong>You (Yale):</strong> ${escapeHtml(item.transcript_yale)}</div>` : '';
+    const correction = item.corrected_cantonese ? `<div><strong>Correction:</strong> ${escapeHtml(item.corrected_cantonese)}</div>` : '';
+    const correctionYale = item.corrected_cantonese_yale ? `<div class="text-muted"><strong>Correction (Yale):</strong> ${escapeHtml(item.corrected_cantonese_yale)}</div>` : '';
     const coachYale = item.reply_cantonese_yale ? `<div class="text-muted"><strong>Coach (Yale):</strong> ${escapeHtml(item.reply_cantonese_yale)}</div>` : '';
     return `
       <div class="entry">
         <div class="text-muted">${escapeHtml(item.created_at)} UTC</div>
         <div><strong>You:</strong> ${escapeHtml(item.transcript)}</div>
         ${youYale}
+        ${correction}
+        ${correctionYale}
         <div><strong>Coach:</strong> ${escapeHtml(item.reply_cantonese)}</div>
         ${coachYale}
         ${english}
@@ -189,6 +189,8 @@ startBtn.addEventListener('click', async () => {
 
       transcriptBox.textContent = payload.transcript || '-';
       transcriptYaleBox.textContent = payload.transcript_yale || '-';
+      correctedCantoneseBox.textContent = payload.corrected_cantonese || '-';
+      correctedCantoneseYaleBox.textContent = payload.corrected_cantonese_yale || '-';
 
       currentReplyCantonese = payload.reply_cantonese || '';
       currentReplyYale = payload.reply_cantonese_yale || '';
